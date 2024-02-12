@@ -10,12 +10,14 @@ import {
 } from "@heroicons/react/16/solid";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Checkbox, Input, Link } from "@nextui-org/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import validator from "validator";
 import { z } from "zod";
+import { passwordStrength } from "check-password-strength";
+import PasswordStrength from "./passStrength";
 
-// form schema
+// signup form schema
 const formSchema = z
   .object({
     firstName: z
@@ -33,11 +35,11 @@ const formSchema = z
     password: z
       .string()
       .min(6, "password must be at least 6 chars")
-      .max(16, "password must be less 16 chars"),
+      .max(64, "password must be less 64 chars"),
     confirmPassword: z
       .string()
       .min(6, "password must be at least 6 chars")
-      .max(16, "password must be less 16 chars"),
+      .max(64, "password must be less 64 chars"),
     termsConsent: z.literal(true, {
       errorMap: () => ({
         message: "Please accept the terms and conditions to continue"
@@ -45,20 +47,19 @@ const formSchema = z
     })
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Password and Confirm password doesn't match",
-    path: ["password", "confirmPasswordk"]
+    message: "Password and confirm password doesn't match",
+    path: ["confirmPassword"]
   });
 
 export default function SignupForm() {
   // toggle password visibility
   const [isPassVisible, setIsPassVisible] = useState(false);
   const togglePassVisibility = () => setIsPassVisible((prev) => !prev);
-  // toggle terms and conditions consent - boolean
-  // const [termsAccepted, setTermsAccepted] = useState(false);
 
   type formType = z.infer<typeof formSchema>;
   const {
     register,
+    watch,
     handleSubmit,
     control,
     formState: { errors },
@@ -66,6 +67,13 @@ export default function SignupForm() {
   } = useForm<formType>({
     resolver: zodResolver(formSchema)
   });
+
+  // password strength
+  const [passStrength, setPassStrength] = useState(0);
+
+  useEffect(() => {
+    setPassStrength(passwordStrength(watch().password).id);
+  }, [watch().password]);
 
   const saveUser: SubmitHandler<formType> = async (data) => {
     console.log({ data });
@@ -147,6 +155,8 @@ export default function SignupForm() {
         startContent={<KeyIcon className="w-6" />}
       />
 
+      <PasswordStrength passStrength={passStrength} />
+
       <Controller
         control={control}
         name="termsConsent"
@@ -160,6 +170,7 @@ export default function SignupForm() {
           </Checkbox>
         )}
       />
+      <p className="col-span-2 text-red-500">{errors.termsConsent?.message}</p>
 
       <Button
         // disabled={!termsAccepted}
